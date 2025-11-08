@@ -7,6 +7,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { FirebaseOrderData, getEmailData, getBossEmailData } from '../firebase/FirebaseData';
 import { uploadOrderData, uploadEmailMessage } from '../firebase/FirebaseFirestore';
+import { useOvenUseCase } from '../menu/OvenUseCase';
 import PhoneVerification from './PhoneVerification';
 
 interface OrderSubmitProps {
@@ -34,13 +35,53 @@ const getDayAfterTomorrowLocalDate = (): string => {
   return toLocalDateString(d);
 };
 
-const getAllowedStartDate = (): string => {
+const getAllowedStartDate = (hot: boolean): string => {
   const now = new Date();
   const isAfterSeventeen = now.getHours() > 17 || (now.getHours() === 17 && now.getMinutes() > 0);
+  
+  // If hot = true, allow today's date
+  if (hot) {
+    return toLocalDateString(now);
+  }
+  
   // Start date: if > 17:00 then +2 days, else +1 day
   const start = new Date();
   start.setDate(start.getDate() + (isAfterSeventeen ? 2 : 1));
   return toLocalDateString(start);
+};
+
+const getAllowedHours = (hot: boolean, selectedDate: string): string[] => {
+  // Default hours: 12-16
+  const defaultHours = ['12', '13', '14', '15', '16'];
+  
+  // If hot = false, return default hours
+  if (!hot) {
+    return defaultHours;
+  }
+  
+  // If hot = true, check if selected date is today
+  const today = toLocalDateString(new Date());
+  if (selectedDate === today) {
+    // For today: hours from current hour to 20:00
+    const now = new Date();
+    const currentHour = now.getHours();
+    const hours: string[] = [];
+    
+    // Start from current hour + 1 (at least 1 hour ahead), but not less than 12
+    const startHour = Math.max(currentHour + 1, 12);
+    // End at 20:00
+    const endHour = 20;
+    
+    for (let h = startHour; h <= endHour; h++) {
+      hours.push(pad2(h));
+    }
+    
+    // If no hours available (e.g., it's after 20:00), return default
+    return hours.length > 0 ? hours : defaultHours;
+  }
+  
+  // For other days, return default hours
+  return defaultHours;
 };
 
 const combineDateTimeToEpoch = (dateStr: string, timeStr: string): number => {
@@ -54,11 +95,12 @@ const combineDateTimeToEpoch = (dateStr: string, timeStr: string): number => {
 const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
   const { cartItems, getTotalPrice, getPizzaNames, clearCart } = useCart();
   const { signOut, signInAnonymously } = useAuth();
+  const { ovenData } = useOvenUseCase();
 
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('+7 ');
-  const [date, setDate] = React.useState(getAllowedStartDate());
+  const [date, setDate] = React.useState('');
   const [time, setTime] = React.useState('12:00');
   const [additionalInfo, setAdditionalInfo] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
@@ -68,7 +110,7 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
   const total = getTotalPrice();
   const pizzaNames = getPizzaNames();
 
-  const allowedStartDate = React.useMemo(() => getAllowedStartDate(), []);
+  const allowedStartDate = React.useMemo(() => getAllowedStartDate(ovenData.hot), [ovenData.hot]);
   const nextDays = React.useMemo(() => {
     // 8 days window: start date + 7 days
     const days: { value: string; label: string }[] = [];
@@ -84,8 +126,36 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
     return days;
   }, [allowedStartDate]);
 
-  const allowedHours = React.useMemo(() => ['12', '13', '14', '15', '16'], []);
+  // Set initial date when allowedStartDate changes or update if current date is invalid
+  React.useEffect(() => {
+    if (allowedStartDate) {
+      if (!date) {
+        // Set initial date
+        setDate(allowedStartDate);
+      } else {
+        // Check if current date is still valid, if not, update to allowedStartDate
+        const currentDate = new Date(date);
+        const startDate = new Date(allowedStartDate);
+        if (currentDate < startDate || !nextDays.some(d => d.value === date)) {
+          setDate(allowedStartDate);
+        }
+      }
+    }
+  }, [allowedStartDate, date, nextDays]);
+
+  const allowedHours = React.useMemo(() => getAllowedHours(ovenData.hot, date), [ovenData.hot, date]);
   const minutes = React.useMemo(() => ['00', '15', '30', '45'], []);
+
+  // Update time if current time is not in allowed hours
+  React.useEffect(() => {
+    if (allowedHours.length > 0 && date) {
+      const currentHour = time.split(':')[0];
+      if (!allowedHours.includes(currentHour)) {
+        // Set to first available hour
+        setTime(`${allowedHours[0]}:00`);
+      }
+    }
+  }, [allowedHours, date, time]);
 
   const onBackdropClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
     if (submitting) return;
@@ -215,12 +285,6 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
               <div><strong>Пиццы:</strong> {pizzaNames.join(', ')}</div>
               <div><strong>Сумма:</strong> {total.toFixed(2)} ₽</div>
             </div>
-
-            <InfoBanner compact className="order-info-banner">
-              <strong>Как проходит выдача заказа:</strong> выберите удобные дату и время. 
-              Наше тесто мы замешиваем для каждой пиццы отдельно, и оно должно настояться. Поэтому получить заказ в день оформления невозможно — минимальный срок готовности — следующий день.
-              Приезжайте к этому времени — мы приготовим пиццу при вас, и вы заберёте заказ на вынос.
-            </InfoBanner>
 
             <div className="order-grid">
               <div className="order-field">

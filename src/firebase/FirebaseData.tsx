@@ -42,6 +42,14 @@ export const defaultFirebaseOrderData: FirebaseOrderData = {
     time: 0,
 };
 
+export interface FirebaseOvenData {
+    hot: boolean;
+}
+
+export const defaultFirebaseOvenData: FirebaseOvenData = {
+    hot: false,
+};
+
 /**
  * Creates initial OrderData with a generated UUID
  * @returns FirebaseOrderData with a unique ID and default values
@@ -309,6 +317,9 @@ export const defaultFirebaseMainData: FirebaseMainData = {
 
 export const MAIN_COLLECTION_PATH = "main";
 export const MAIN_DOCUMENT_ID = "pizzeria-161";
+
+export const OVEN_COLLECTION_PATH = "oven";
+export const OVEN_DOCUMENT_ID = "pizzeria-161";
 
 
 // Boss notification email templates

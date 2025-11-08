@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getMainOpenStatus } from '../firebase/FirebaseFirestore';
+import { useOvenUseCase } from '../menu/OvenUseCase';
 import relaxImg from '../Pizza_relax_1.png';
 
 interface MainGuardProps {
@@ -11,6 +12,7 @@ const MainGuard: React.FC<MainGuardProps> = ({ children }) => {
   const { user, loading: authLoading, error: authError } = useAuth();
   const [loading, setLoading] = useState<boolean>(true);
   const [isOpen, setIsOpen] = useState<boolean>(true);
+  const { ovenData, loading: ovenLoading } = useOvenUseCase();
 
   useEffect(() => {
     const fetchMain = async () => {
@@ -28,7 +30,7 @@ const MainGuard: React.FC<MainGuardProps> = ({ children }) => {
     fetchMain();
   }, [authLoading, user, authError]);
 
-  if (authLoading || loading) {
+  if (authLoading || loading || ovenLoading) {
     return (
       <div className="auth-loading-container">
         <div className="auth-loading-spinner"></div>

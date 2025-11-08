@@ -13,8 +13,8 @@ import {
   doc
 } from "firebase/firestore";
 import { db } from "./FirebaseConfig";
-import { FirebasePizzaData, FirebaseOrderData, FirebaseEmailData, MAIN_COLLECTION_PATH, MAIN_DOCUMENT_ID } from "./FirebaseData";
-import { getDoc } from "firebase/firestore";
+import { FirebasePizzaData, FirebaseOrderData, FirebaseEmailData, MAIN_COLLECTION_PATH, MAIN_DOCUMENT_ID, FirebaseOvenData, OVEN_COLLECTION_PATH, OVEN_DOCUMENT_ID, defaultFirebaseOvenData } from "./FirebaseData";
+import { getDoc, getDocFromCache, getDocFromServer } from "firebase/firestore";
 
 // Collection names
 const PIZZAS_COLLECTION = "pizza";
@@ -208,5 +208,52 @@ export const getMainOpenStatus = async (): Promise<boolean> => {
     console.error("Error fetching main open status:", error);
     // Fail-open to avoid blocking users on transient errors
     return true;
+  }
+};
+
+/**
+ * Fetch oven data from Firestore
+ */
+export const getOvenData = async (useCache: boolean = true): Promise<FirebaseOvenData> => {
+  try {
+    console.log("Starting oven data fetch...", { useCache });
+    const ovenDocRef = doc(collection(db, OVEN_COLLECTION_PATH), OVEN_DOCUMENT_ID);
+    
+    let snap;
+    if (useCache) {
+      try {
+        // Try to get from cache first
+        snap = await getDocFromCache(ovenDocRef);
+        console.log("✅ Oven data loaded from cache", { 
+          fromCache: snap.metadata?.fromCache || false
+        });
+      } catch (cacheError) {
+        // If cache fails, get from server
+        console.log("Cache miss, fetching from server...");
+        snap = await getDocFromServer(ovenDocRef);
+        console.log("✅ Oven data loaded from server");
+      }
+    } else {
+      // Force load from server
+      snap = await getDocFromServer(ovenDocRef);
+      console.log("✅ Oven data loaded from server (cache disabled)");
+    }
+    
+    if (!snap.exists()) {
+      console.warn("Oven document not found; using default values");
+      return defaultFirebaseOvenData;
+    }
+    
+    const data = snap.data() as any;
+    const ovenData: FirebaseOvenData = {
+      hot: typeof data?.hot === "boolean" ? data.hot : defaultFirebaseOvenData.hot
+    };
+    
+    console.log("🎉 Successfully loaded oven data", ovenData);
+    return ovenData;
+  } catch (error: any) {
+    console.error("Error fetching oven data:", error);
+    // Return default values on error to avoid blocking users
+    return defaultFirebaseOvenData;
   }
 };
