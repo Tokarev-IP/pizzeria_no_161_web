@@ -43,6 +43,8 @@
   overflow: hidden;
   transition: all 0.3s ease;
   position: relative;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
 .pizza-card:hover {
@@ -53,7 +55,8 @@
 /* Pizza Image Container */
 .pizza-image-container {
   position: relative;
-  height: 260px;
+  width: 100%;
+  aspect-ratio: 4 / 3; /* 2:1.5 = 4:3 */
   overflow: hidden;
 }
 
@@ -282,7 +285,8 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+/* Мобильные устройства - 1 колонка */
+@media (max-width: 600px) {
   .menu-container {
     padding: 0.5rem 0.5rem;
   }
@@ -296,13 +300,19 @@
   }
   
   .menu-grid {
-    grid-template-columns: minmax(220px, 260px);
+    grid-template-columns: 1fr;
     gap: 1.5rem;
-    padding: 0 0.5rem;
+    padding: 0;
+  }
+  
+  .pizza-card {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
   }
   
   .pizza-image-container {
-    height: 180px;
+    aspect-ratio: 4 / 3; /* Сохраняем соотношение сторон на мобильных */
   }
   
   .pizza-info {
@@ -317,13 +327,27 @@
   .add-button { font-size: 0.85rem; padding: 7px 10px; }
 }
 
-@media (max-width: 480px) {
-  .menu-header h1 {
-    font-size: 2rem;
+/* Планшеты - 2 колонки */
+@media (min-width: 601px) and (max-width: 1000px) {
+  .menu-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    padding: 0 1rem;
   }
   
-  .pizza-image-container {
-    height: 168px;
+  .pizza-card {
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .menu-container {
+    padding: 0.5rem 0.5rem;
+  }
+  
+  .menu-header h1 {
+    font-size: 2rem;
   }
   
   .pizza-emoji {
@@ -332,16 +356,36 @@
   .add-button { padding: 6px 10px; font-size: 0.8rem; }
 }
 
+/* Десктоп - 3+ колонки */
+@media (min-width: 1001px) {
+  .menu-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 260px));
+  }
+  
+  .pizza-card {
+    max-width: 400px;
+    margin: 0 auto;
+  }
+}
+
 /* Large screens - more items per row */
 @media (min-width: 1200px) {
   .menu-grid {
     grid-template-columns: repeat(auto-fit, minmax(280px, 320px));
+  }
+  
+  .pizza-card {
+    max-width: 400px;
   }
 }
 
 @media (min-width: 1600px) {
   .menu-grid {
     grid-template-columns: repeat(auto-fit, minmax(300px, 320px));
+  }
+  
+  .pizza-card {
+    max-width: 400px;
   }
 }
 

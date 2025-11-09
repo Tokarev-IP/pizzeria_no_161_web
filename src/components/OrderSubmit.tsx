@@ -37,17 +37,30 @@ const getDayAfterTomorrowLocalDate = (): string => {
 
 const getAllowedStartDate = (hot: boolean): string => {
   const now = new Date();
-  const isAfterSeventeen = now.getHours() > 17 || (now.getHours() === 17 && now.getMinutes() > 0);
   
-  // If hot = true, allow today's date
   if (hot) {
-    return toLocalDateString(now);
+    // If hot = true: allow today if time <= 22:00, otherwise start from tomorrow
+    // Tomorrow and beyond are always available (no 17:00 restriction)
+    const isAfterTwentyTwo = now.getHours() > 22 || (now.getHours() === 22 && now.getMinutes() > 0);
+    
+    if (!isAfterTwentyTwo) {
+      // Can select today (and tomorrow, and beyond)
+      return toLocalDateString(now);
+    } else {
+      // Can't select today (too late), but tomorrow is always available
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return toLocalDateString(tomorrow);
+    }
+  } else {
+    // If hot = false: use original logic with 17:00 restriction
+    const isAfterSeventeen = now.getHours() > 17 || (now.getHours() === 17 && now.getMinutes() > 0);
+    
+    // Start date: if > 17:00 then +2 days, else +1 day
+    const start = new Date();
+    start.setDate(start.getDate() + (isAfterSeventeen ? 2 : 1));
+    return toLocalDateString(start);
   }
-  
-  // Start date: if > 17:00 then +2 days, else +1 day
-  const start = new Date();
-  start.setDate(start.getDate() + (isAfterSeventeen ? 2 : 1));
-  return toLocalDateString(start);
 };
 
 const getAllowedHours = (hot: boolean, selectedDate: string): string[] => {
@@ -62,21 +75,21 @@ const getAllowedHours = (hot: boolean, selectedDate: string): string[] => {
   // If hot = true, check if selected date is today
   const today = toLocalDateString(new Date());
   if (selectedDate === today) {
-    // For today: hours from current hour to 20:00
+    // For today: hours from current hour + 1 to 21:00
     const now = new Date();
     const currentHour = now.getHours();
     const hours: string[] = [];
     
     // Start from current hour + 1 (at least 1 hour ahead), but not less than 12
     const startHour = Math.max(currentHour + 1, 12);
-    // End at 20:00
-    const endHour = 20;
+    // End at 21:00
+    const endHour = 21;
     
     for (let h = startHour; h <= endHour; h++) {
       hours.push(pad2(h));
     }
     
-    // If no hours available (e.g., it's after 20:00), return default
+    // If no hours available (e.g., it's after 21:00), return default
     return hours.length > 0 ? hours : defaultHours;
   }
   
@@ -101,7 +114,7 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
   const [email, setEmail] = React.useState('');
   const [phone, setPhone] = React.useState('+7 ');
   const [date, setDate] = React.useState('');
-  const [time, setTime] = React.useState('12:00');
+  const [time, setTime] = React.useState('');
   const [additionalInfo, setAdditionalInfo] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -126,19 +139,14 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
     return days;
   }, [allowedStartDate]);
 
-  // Set initial date when allowedStartDate changes or update if current date is invalid
+  // Validate date when allowedStartDate changes - only update if current date is invalid
   React.useEffect(() => {
-    if (allowedStartDate) {
-      if (!date) {
-        // Set initial date
-        setDate(allowedStartDate);
-      } else {
-        // Check if current date is still valid, if not, update to allowedStartDate
-        const currentDate = new Date(date);
-        const startDate = new Date(allowedStartDate);
-        if (currentDate < startDate || !nextDays.some(d => d.value === date)) {
-          setDate(allowedStartDate);
-        }
+    if (allowedStartDate && date) {
+      // Check if current date is still valid, if not, clear it
+      const currentDate = new Date(date);
+      const startDate = new Date(allowedStartDate);
+      if (currentDate < startDate || !nextDays.some(d => d.value === date)) {
+        setDate('');
       }
     }
   }, [allowedStartDate, date, nextDays]);
@@ -146,14 +154,17 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
   const allowedHours = React.useMemo(() => getAllowedHours(ovenData.hot, date), [ovenData.hot, date]);
   const minutes = React.useMemo(() => ['00', '15', '30', '45'], []);
 
-  // Update time if current time is not in allowed hours
+  // Clear time if date changes or if current time is not in allowed hours
   React.useEffect(() => {
-    if (allowedHours.length > 0 && date) {
+    if (date && time) {
       const currentHour = time.split(':')[0];
       if (!allowedHours.includes(currentHour)) {
-        // Set to first available hour
-        setTime(`${allowedHours[0]}:00`);
+        // Clear time if current hour is not allowed
+        setTime('');
       }
+    } else if (!date && time) {
+      // Clear time if date is cleared
+      setTime('');
     }
   }, [allowedHours, date, time]);
 
@@ -178,8 +189,13 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
     !!name.trim() &&
     isEmailValid(email) &&
     isPhoneValid(phone) &&
+    // date and time must be selected
+    !!date &&
+    !!time &&
     // date within allowed window
     date >= nextDays[0].value && date <= nextDays[nextDays.length - 1].value &&
+    // time must be valid format and hour must be in allowed hours
+    time.includes(':') &&
     allowedHours.includes(time.split(':')[0])
   );
 
@@ -327,6 +343,7 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                   >
+                    <option value="">Выберите дату</option>
                     {nextDays.map(d => (
                       <option key={d.value} value={d.value}>{d.label}</option>
                     ))}
@@ -337,18 +354,43 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: 'min(180px, 100%)' }}>
                     <select
                       className="order-select"
-                      value={time.split(':')[0]}
-                      onChange={(e) => setTime(`${pad2(Number(e.target.value))}:${time.split(':')[1]}`)}
+                      value={time ? time.split(':')[0] : ''}
+                      onChange={(e) => {
+                        const hour = e.target.value;
+                        if (hour) {
+                          // If hour is selected, set time with default minutes (00) or keep existing minutes
+                          const minute = time ? time.split(':')[1] : '00';
+                          setTime(`${pad2(Number(hour))}:${minute}`);
+                        } else {
+                          // If hour is cleared, clear time
+                          setTime('');
+                        }
+                      }}
+                      disabled={!date}
                     >
+                      <option value="">Час</option>
                       {allowedHours.map(h => (
                         <option key={h} value={h}>{h}</option>
                       ))}
                     </select>
                     <select
                       className="order-select"
-                      value={time.split(':')[1]}
-                      onChange={(e) => setTime(`${time.split(':')[0]}:${e.target.value}`)}
+                      value={time ? time.split(':')[1] : ''}
+                      onChange={(e) => {
+                        const minute = e.target.value;
+                        const hour = time ? time.split(':')[0] : '';
+                        if (hour && minute) {
+                          setTime(`${hour}:${minute}`);
+                        } else if (hour && !minute) {
+                          // If hour is selected but minute is cleared, set default minute
+                          setTime(`${hour}:00`);
+                        } else {
+                          setTime('');
+                        }
+                      }}
+                      disabled={!date || !time || !time.split(':')[0]}
                     >
+                      <option value="">Мин</option>
                       {minutes.map(m => (
                         <option key={m} value={m}>{m}</option>
                       ))}
@@ -363,7 +405,7 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
                   className="order-textarea"
                   value={additionalInfo}
                   onChange={(e) => setAdditionalInfo(e.target.value.slice(0, 200))}
-                  placeholder="Оставьте пустое поле, если нет комментариев (макс. 200 символов)"
+                  placeholder="Оставьте пустое поле, если нет комментариев"
                   maxLength={200}
                 />
                 <div className="order-helper">{additionalInfo.length}/200</div>
