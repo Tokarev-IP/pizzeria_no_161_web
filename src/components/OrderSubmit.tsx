@@ -39,15 +39,15 @@ const getAllowedStartDate = (hot: boolean): string => {
   const now = new Date();
   
   if (hot) {
-    // If hot = true: allow today if time <= 22:00, otherwise start from tomorrow
+    // If hot = true: allow today if time < 20:00, otherwise start from tomorrow
     // Tomorrow and beyond are always available (no 17:00 restriction)
-    const isAfterTwentyTwo = now.getHours() > 22 || (now.getHours() === 22 && now.getMinutes() > 0);
+    const isAtOrAfterTwenty = now.getHours() >= 20;
     
-    if (!isAfterTwentyTwo) {
+    if (!isAtOrAfterTwenty) {
       // Can select today (and tomorrow, and beyond)
       return toLocalDateString(now);
     } else {
-      // Can't select today (too late), but tomorrow is always available
+      // Can't select today (too late - 20:00 or later), but tomorrow is always available
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       return toLocalDateString(tomorrow);
@@ -75,21 +75,24 @@ const getAllowedHours = (hot: boolean, selectedDate: string): string[] => {
   // If hot = true, check if selected date is today
   const today = toLocalDateString(new Date());
   if (selectedDate === today) {
-    // For today: hours from current hour + 1 to 21:00
+    // For today: hours from current hour + 1 to 20:00 (no minimum 12 restriction for today)
     const now = new Date();
     const currentHour = now.getHours();
     const hours: string[] = [];
     
-    // Start from current hour + 1 (at least 1 hour ahead), but not less than 12
-    const startHour = Math.max(currentHour + 1, 12);
-    // End at 21:00
-    const endHour = 21;
+    // Start from current hour + 1 (at least 1 hour ahead)
+    const startHour = currentHour + 1;
+    // End at 20:00
+    const endHour = 20;
     
-    for (let h = startHour; h <= endHour; h++) {
-      hours.push(pad2(h));
+    // Only add hours if startHour is valid (not past 20:00)
+    if (startHour <= endHour) {
+      for (let h = startHour; h <= endHour; h++) {
+        hours.push(pad2(h));
+      }
     }
     
-    // If no hours available (e.g., it's after 21:00), return default
+    // If no hours available, return default
     return hours.length > 0 ? hours : defaultHours;
   }
   
