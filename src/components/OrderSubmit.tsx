@@ -75,13 +75,13 @@ const getAllowedHours = (hot: boolean, selectedDate: string): string[] => {
   // If hot = true, check if selected date is today
   const today = toLocalDateString(new Date());
   if (selectedDate === today) {
-    // For today: hours from current hour + 1 to 20:00 (no minimum 12 restriction for today)
+    // For today: hours from current hour + 1 to 20:00, minimum start hour is 8
     const now = new Date();
     const currentHour = now.getHours();
     const hours: string[] = [];
     
-    // Start from current hour + 1 (at least 1 hour ahead)
-    const startHour = currentHour + 1;
+    // Start from current hour + 1 (at least 1 hour ahead), but minimum is 8
+    const startHour = Math.max(currentHour + 1, 8);
     // End at 20:00
     const endHour = 20;
     
