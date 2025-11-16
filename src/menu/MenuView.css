@@ -300,15 +300,15 @@
   }
   
   .menu-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
     gap: 1.5rem;
-    padding: 0;
+    padding: 0 1rem;
+    justify-content: center;
   }
   
   .pizza-card {
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
+    max-width: 260px;
+    margin: 0 auto;
   }
   
   .pizza-image-container {
@@ -330,14 +330,15 @@
 /* Планшеты - 2 колонки */
 @media (min-width: 601px) and (max-width: 1000px) {
   .menu-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
+    gap: 2rem;
     padding: 0 1rem;
+    justify-content: center;
   }
   
   .pizza-card {
-    max-width: 100%;
-    margin: 0;
+    max-width: 260px;
+    margin: 0 auto;
   }
 }
 

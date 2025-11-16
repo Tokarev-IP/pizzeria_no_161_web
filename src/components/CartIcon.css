@@ -19,7 +19,7 @@
 /* Cart Icon */
 .cart-icon {
   position: relative;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #F8F8ED;
   border-radius: 50%;
   width: 80px;
   height: 80px;
@@ -28,17 +28,25 @@
   justify-content: center;
   transition: all 0.3s ease;
   overflow: visible;
-  filter: drop-shadow(0 4px 15px rgba(102, 126, 234, 0.4));
+  filter: drop-shadow(0 4px 15px rgba(0, 0, 0, 0.15));
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .cart-icon:hover {
   transform: translateY(-2px);
-  filter: drop-shadow(0 6px 20px rgba(102, 126, 234, 0.6));
+  filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.2));
 }
 
 .cart-emoji {
   font-size: 2rem;
   color: white;
+}
+
+.cart-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
 }
 
 /* Cart Badge */
@@ -111,8 +119,8 @@
     height: 65px;
   }
   
-  .cart-emoji {
-    font-size: 1.6rem;
+  .cart-image {
+    padding: 6px;
   }
   
   .cart-badge {
@@ -141,8 +149,8 @@
     height: 58px;
   }
   
-  .cart-emoji {
-    font-size: 1.4rem;
+  .cart-image {
+    padding: 5px;
   }
   
   .cart-badge {

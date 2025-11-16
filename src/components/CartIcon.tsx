@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import './CartIcon.css';
 import PizzaCart from './PizzaCart';
 import OrderSubmit from './OrderSubmit';
+import boxImage from '../box_image_very_small.png';
+import boxWithPizzaImage from '../box_with_pizza_image_very_small.png';
 
 const CartIcon: React.FC = () => {
   const { getTotalItems, getTotalPrice } = useCart();
@@ -25,7 +27,11 @@ const CartIcon: React.FC = () => {
       {user && (
         <>
           <div className="cart-icon" onClick={toggleOpen} role="button" aria-label="Открыть корзину" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOpen(); }}}>
-            <span className="cart-emoji">🛒</span>
+            <img 
+              src={totalItems > 0 ? boxWithPizzaImage : boxImage} 
+              alt={totalItems > 0 ? 'Корзина с пиццей' : 'Корзина пуста'} 
+              className="cart-image"
+            />
             {totalItems > 0 && (
               <span className="cart-badge">
                 {totalItems > 99 ? '99+' : totalItems}

@@ -76,6 +76,7 @@ const getAllowedHours = (hot: boolean, selectedDate: string): string[] => {
   const today = toLocalDateString(new Date());
   if (selectedDate === today) {
     // For today: hours from current hour + 1 to 20:00, minimum start hour is 8
+    // Minutes will be filtered by getAllowedMinutes to ensure 30 min minimum difference
     const now = new Date();
     const currentHour = now.getHours();
     const hours: string[] = [];
@@ -98,6 +99,60 @@ const getAllowedHours = (hot: boolean, selectedDate: string): string[] => {
   
   // For other days, return default hours
   return defaultHours;
+};
+
+const getAllowedMinutes = (hot: boolean, selectedDate: string, selectedHour: string): string[] => {
+  // Default minutes: 00, 15, 30, 45
+  const defaultMinutes = ['00', '15', '30', '45'];
+  
+  // If no hour selected or hot = false, return default minutes
+  if (!selectedHour || !hot) {
+    return defaultMinutes;
+  }
+  
+  // If hot = true, check if selected date is today
+  const today = toLocalDateString(new Date());
+  if (selectedDate === today) {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const selectedHourNum = Number(selectedHour);
+    
+    // If selected hour is current hour or current hour + 1, filter minutes
+    if (selectedHourNum === currentHour || selectedHourNum === currentHour + 1) {
+      const allowedMinutes: string[] = [];
+      
+      // Calculate minimum time needed (current time + 30 minutes)
+      const minTime = new Date(now.getTime() + 30 * 60 * 1000); // +30 minutes
+      const minHour = minTime.getHours();
+      const minMinute = minTime.getMinutes();
+      
+      // For each minute option, check if it gives at least 30 minutes difference
+      for (const minuteStr of defaultMinutes) {
+        const minute = Number(minuteStr);
+        const selectedTime = new Date(now);
+        selectedTime.setHours(selectedHourNum, minute, 0, 0);
+        
+        // If selected time is before minimum time, skip it
+        if (selectedTime < minTime) {
+          continue;
+        }
+        
+        // Calculate difference in minutes
+        const diffMinutes = (selectedTime.getTime() - now.getTime()) / (60 * 1000);
+        
+        // Only allow if difference is at least 30 minutes
+        if (diffMinutes >= 30) {
+          allowedMinutes.push(minuteStr);
+        }
+      }
+      
+      return allowedMinutes.length > 0 ? allowedMinutes : defaultMinutes;
+    }
+  }
+  
+  // For other cases, return default minutes
+  return defaultMinutes;
 };
 
 const combineDateTimeToEpoch = (dateStr: string, timeStr: string): number => {
@@ -128,11 +183,13 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
 
   const allowedStartDate = React.useMemo(() => getAllowedStartDate(ovenData.hot), [ovenData.hot]);
   const nextDays = React.useMemo(() => {
-    // 8 days window: start date + 7 days
+    // If hot = true: 2 days (start date + 1 day)
+    // If hot = false: 1 day (only start date)
+    const daysCount = ovenData.hot ? 2 : 1;
     const days: { value: string; label: string }[] = [];
     const base = new Date(allowedStartDate);
     base.setHours(0,0,0,0);
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i < daysCount; i++) {
       const d = new Date(base);
       d.setDate(base.getDate() + i);
       const value = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -140,7 +197,7 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
       days.push({ value, label });
     }
     return days;
-  }, [allowedStartDate]);
+  }, [allowedStartDate, ovenData.hot]);
 
   // Validate date when allowedStartDate changes - only update if current date is invalid
   React.useEffect(() => {
@@ -155,21 +212,30 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
   }, [allowedStartDate, date, nextDays]);
 
   const allowedHours = React.useMemo(() => getAllowedHours(ovenData.hot, date), [ovenData.hot, date]);
-  const minutes = React.useMemo(() => ['00', '15', '30', '45'], []);
+  const selectedHour = time ? time.split(':')[0] : '';
+  const allowedMinutes = React.useMemo(() => getAllowedMinutes(ovenData.hot, date, selectedHour), [ovenData.hot, date, selectedHour]);
 
-  // Clear time if date changes or if current time is not in allowed hours
+  // Clear time if date changes or if current time is not in allowed hours or minutes
   React.useEffect(() => {
     if (date && time) {
       const currentHour = time.split(':')[0];
+      const currentMinute = time.split(':')[1];
       if (!allowedHours.includes(currentHour)) {
         // Clear time if current hour is not allowed
         setTime('');
+      } else if (currentHour && currentMinute && !allowedMinutes.includes(currentMinute)) {
+        // If current minute is not allowed, reset to first available minute or clear
+        if (allowedMinutes.length > 0) {
+          setTime(`${currentHour}:${allowedMinutes[0]}`);
+        } else {
+          setTime('');
+        }
       }
     } else if (!date && time) {
       // Clear time if date is cleared
       setTime('');
     }
-  }, [allowedHours, date, time]);
+  }, [allowedHours, allowedMinutes, date, time]);
 
   const onBackdropClick: React.MouseEventHandler<HTMLDivElement> = (e) => {
     if (submitting) return;
@@ -394,7 +460,7 @@ const OrderSubmit: React.FC<OrderSubmitProps> = ({ onClose }) => {
                       disabled={!date || !time || !time.split(':')[0]}
                     >
                       <option value="">Мин</option>
-                      {minutes.map(m => (
+                      {allowedMinutes.map(m => (
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>

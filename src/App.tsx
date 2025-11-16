@@ -1,6 +1,7 @@
 import React from 'react';
 import MenuPage from './menu/MenuPage';
 import CartIcon from './components/CartIcon';
+import OvenIcon from './components/OvenIcon';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import './App.css';
@@ -16,6 +17,7 @@ function App() {
           <MainGuard>
             <div className="App">
               <Header />
+              <OvenIcon />
               <CartIcon />
               <MenuPage />
             </div>
