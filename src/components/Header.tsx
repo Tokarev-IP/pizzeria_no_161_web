@@ -6,7 +6,7 @@ const Header: React.FC = () => {
   return (
     <header className="app-header" data-header>
       <img src={logo} alt="Pizzeria No161 logo" className="app-header__logo" />
-      <h1 className="app-header__title">Pizzeria No 161</h1>
+      <h1 className="app-header__title">Pizzeria No.161</h1>
     </header>
   );
 };
